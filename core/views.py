@@ -258,3 +258,111 @@ def course_upload(request):
         form = UploadFileForm()
     return render(request, 'core/course_upload.html', {'form': form, 'message': message})
 
+# 붙여넣을 함수들: course_search, course_apply, course_lookup, course_admin_export
+# (core/views.py의 끝에 추가하세요)
+
+def course_search(request):
+    form = SimpleSearchForm(request.GET or None)
+    results = []
+    if form.is_valid():
+        name = form.cleaned_data['name'].strip()
+        qs = CourseModality.objects.filter(korean_name__iexact=name) | CourseModality.objects.filter(english_name__iexact=name)
+        if qs.exists():
+            results = list(qs)
+        else:
+            candidates = list(CourseModality.objects.values_list('korean_name', flat=True)) + list(CourseModality.objects.values_list('english_name', flat=True))
+            if candidates:
+                match = process.extractOne(name, candidates, scorer=fuzz.ratio)
+                if match and match[1] >= 70:
+                    results = list(CourseModality.objects.filter(korean_name=match[0]) | CourseModality.objects.filter(english_name=match[0]))
+    return render(request, 'core/course_search.html', {'form': form, 'results': results})
+
+
+def course_apply(request, pk):
+    record = get_object_or_404(CourseModality, pk=pk)
+    message = ''
+    if request.method == 'POST':
+        form = ApplyPasswordForm(request.POST)
+        if form.is_valid():
+            pw = form.cleaned_data['record_password'].strip()
+            stored_pw = (record.password or '').strip()
+            if pw != stored_pw:
+                message = '비밀번호가 틀립니다.'
+            else:
+                new_reason = request.POST.get('reason_for_applying', '').strip()
+                if 'save' in request.POST:
+                    if not new_reason:
+                        message = 'Reason for Applying(신청 이유)를 입력해야 합니다.'
+                    else:
+                        record.reason_for_applying = new_reason
+                        record.apply_this_semester = True
+                        record.modified_date = timezone.now()
+                        record.save()
+                        message = 'Your application has been saved.'
+                if 'cancel' in request.POST:
+                    record.apply_this_semester = False
+                    record.modified_date = timezone.now()
+                    record.save()
+                    message = 'Your application has been cancelled.'
+                return render(request, 'core/course_apply.html', {'record': record, 'form': form, 'message': message, 'unlocked': True})
+    else:
+        form = ApplyPasswordForm()
+    return render(request, 'core/course_apply.html', {'record': record, 'form': form, 'message': message, 'unlocked': False})
+
+
+def course_lookup(request, pk):
+    record = get_object_or_404(CourseModality, pk=pk)
+    message = ''
+    shown = False
+    if request.method == 'POST':
+        form = ApplyPasswordForm(request.POST)
+        if form.is_valid():
+            pw = form.cleaned_data['record_password'].strip()
+            stored_pw = (record.password or '').strip()
+            if pw != stored_pw:
+                message = '비밀번호가 틀립니다.'
+            else:
+                shown = True
+    else:
+        form = ApplyPasswordForm()
+    return render(request, 'core/course_lookup.html', {'record': record, 'form': form, 'message': message, 'shown': shown})
+
+
+def course_admin_export(request):
+    message = ''
+    if request.method == 'POST':
+        pin = request.POST.get('admin_pin', '')
+        if pin != ADMIN_PIN:
+            message = '관리자 PIN이 잘못되었습니다.'
+        else:
+            qs = CourseModality.objects.all().order_by('id')
+            rows = []
+            for rec in qs:
+                rows.append({
+                    'No': rec.id,
+                    'Name': rec.name,
+                    'Korean_name': rec.korean_name,
+                    'English_name': rec.english_name,
+                    'Year': rec.year,
+                    'Semester': rec.semester,
+                    'Language': rec.language,
+                    'Course Title': rec.course_title,
+                    'Time Slot': rec.time_slot,
+                    'Day': rec.day,
+                    'Time': rec.time,
+                    'Frequency(Week)': rec.frequency_week,
+                    'Course format': rec.course_format,
+                    'Apply this semester(Online 70)': 'Yes' if rec.apply_this_semester else 'No',
+                    'Reason for Applying': rec.reason_for_applying,
+                    'Modified Date': rec.modified_date.isoformat() if rec.modified_date else '',
+                    'password': rec.password,
+                })
+            df = pd.DataFrame(rows)
+            buffer = io.BytesIO()
+            df.to_excel(buffer, index=False)
+            buffer.seek(0)
+            response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=course_modality_export.xlsx'
+            return response
+    return render(request, 'core/course_admin_export.html', {'message': message})
+
