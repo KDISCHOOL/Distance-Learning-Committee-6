@@ -3,8 +3,12 @@
 <head>
     <meta charset="utf-8">
     <title>DLC operation</title>
+    <!-- 정적 CSS 연결: static/css/styles.css -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
-<body>
+<body class="site-body">
+    
+  <header class="site-header">
     <h1>DLC operation</h1>
     <nav>
         <a href="{% url 'core:index' %}">Home</a> |
@@ -15,7 +19,15 @@
         <a href="{% url 'core:course_search' %}">Course Search</a> |
         <a href="{% url 'core:course_admin_export' %}">(관리자용) 최종 정보 보기</a>
     </nav>
-    <hr>
+  </header>
+
+  <main class="site-main">
     {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025 Learning Innovation</p>
+  </footer>
 </body>
 </html>
+
