@@ -1,0 +1,28 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>Course Modality Search</h2>
+<form method="get">
+    {{ form.as_p }}
+    <button type="submit">Search</button>
+</form>
+
+{% for r in results %}
+    <hr>
+    <p><strong>No:</strong> {{ r.id }}</p>
+    <p><strong>Name:</strong> {{ r.name }}</p>
+    <p><strong>Korean_name:</strong> {{ r.korean_name }}</p>
+    <p><strong>English_name:</strong> {{ r.english_name }}</p>
+    <p><strong>Year:</strong> {{ r.year }} | <strong>Semester:</strong> {{ r.semester }}</p>
+    <p><strong>Language:</strong> {{ r.language }}</p>
+    <p><strong>Course Title:</strong> {{ r.course_title }}</p>
+    <p><strong>Time Slot:</strong> {{ r.time_slot }} | <strong>Day:</strong> {{ r.day }} | <strong>Time:</strong> {{ r.time }}</p>
+    <p><strong>Frequency(Week):</strong> {{ r.frequency_week }} | <strong>Course format:</strong> {{ r.course_format }}</p>
+
+    <p>
+        <a href="{% url 'core:course_apply' r.id %}">Apply this semester(Online 70)</a> |
+        <a href="{% url 'core:course_lookup' r.id %}">Look up your submitted information</a>
+    </p>
+{% empty %}
+    <p>No results.</p>
+{% endfor %}
+{% endblock %}
