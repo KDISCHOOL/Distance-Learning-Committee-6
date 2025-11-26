@@ -1,7 +1,7 @@
 {% extends 'core/base.html' %}
 {% block content %}
 <h2>Course Modality Upload (관리자)</h2>
-<p>필요 컬럼 예: Korean_name, Name, English_name, Year, Semester, Language, Course Title, Time Slot, Day, Time, Frequency(Week), Course format, password</p>
+<p>필요 컬럼 예: Korean_name, Name, English_name, Year, Semester, Language, Course Title, Time Slot, Day, Time, Frequency(Week), Course format</p>
 {% if message %}<p style="color:red">{{ message }}</p>{% endif %}
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
