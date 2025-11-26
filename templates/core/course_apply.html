@@ -1,0 +1,24 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>Apply for course: {{ record.korean_name }}</h2>
+{% if message %}<p style="color:green">{{ message }}</p>{% endif %}
+{% if not unlocked %}
+    <p>Enter the 4-digit password for this course (stored in Excel) to load existing Reason or write a new one.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Unlock</button>
+    </form>
+{% else %}
+    <p>Existing Reason (if any) is shown below. Modify or add and click Save. Or click Cancel to set Apply = No.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <p>
+            <textarea name="reason_for_applying" rows="6" cols="80">{% if record.reason_for_applying %}{{ record.reason_for_applying }}{% endif %}</textarea>
+        </p>
+        <button type="submit" name="save">Save</button>
+        <button type="submit" name="cancel">Cancel</button>
+    </form>
+{% endif %}
+{% endblock %}
