@@ -1,0 +1,11 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>Faculty DB Upload (관리자 전용)</h2>
+<p>업로드할 엑셀 파일 컬럼 예: Korean_name, English_name, Category, Email</p>
+{% if message %}<p style="color:red">{{ message }}</p>{% endif %}
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Upload and Merge</button>
+</form>
+{% endblock %}
