@@ -1,0 +1,37 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>Lookup your submission for: {{ record.korean_name }}</h2>
+{% if message %}<p style="color:red">{{ message }}</p>{% endif %}
+{% if not shown %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Unlock and View</button>
+    </form>
+{% else %}
+    <h3>Your stored info</h3>
+    <p><strong>No:</strong> {{ record.id }}</p>
+    <p><strong>Name:</strong> {{ record.name }}</p>
+    <p><strong>Korean_name:</strong> {{ record.korean_name }}</p>
+    <p><strong>English_name:</strong> {{ record.english_name }}</p>
+    <p><strong>Year:</strong> {{ record.year }}</p>
+    <p><strong>Semester:</strong> {{ record.semester }}</p>
+    <p><strong>Language:</strong> {{ record.language }}</p>
+    <p><strong>Course Title:</strong> {{ record.course_title }}</p>
+    <p><strong>Time Slot:</strong> {{ record.time_slot }}</p>
+    <p><strong>Day:</strong> {{ record.day }}</p>
+    <p><strong>Time:</strong> {{ record.time }}</p>
+    <p><strong>Frequency(Week):</strong> {{ record.frequency_week }}</p>
+    <p><strong>Course format:</strong> {{ record.course_format }}</p>
+    <p><strong>Apply this semester(Online 70):</strong> {{ record.apply_this_semester|yesno:"Yes,No" }}</p>
+    <p><strong>Reason for Applying:</strong> {{ record.reason_for_applying }}</p>
+    <p><strong>Modified Date:</strong> {% if record.modified_date %}{{ record.modified_date|localtime|date:"Y-m-d h:i:s A" }}{% endif %}</p>
+    {% if record.apply_this_semester %}
+        <form method="post" action="{% url 'core:course_apply' record.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="record_password" value="{{ record.password }}">
+            <button type="submit" name="cancel">Cancel</button>
+        </form>
+    {% endif %}
+{% endif %}
+{% endblock %}
