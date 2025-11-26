@@ -1,0 +1,27 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>Faculty Search</h2>
+<form method="get">
+    {{ form.as_p }}
+    <button type="submit">Search</button>
+</form>
+
+{% for f in results %}
+    <hr>
+    <p><strong>No:</strong> {{ forloop.counter }} </p>
+    <p><strong>Korean:</strong> {{ f.korean_name }}</p>
+    <p><strong>English:</strong> {{ f.english_name }}</p>
+    <p><strong>Category:</strong> {{ f.category }}</p>
+    <p><strong>Email:</strong> <span id="email-{{ forloop.counter }}">{{ f.email }}</span> <button onclick="copyEmail('email-{{ forloop.counter }}')">Copy Email</button></p>
+{% empty %}
+    <p>No results.</p>
+{% endfor %}
+
+<script>
+function copyEmail(id){
+    const el = document.getElementById(id);
+    const text = el ? el.innerText : '';
+    navigator.clipboard.writeText(text).then(()=> alert('Copied: ' + text));
+}
+</script>
+{% endblock %}
