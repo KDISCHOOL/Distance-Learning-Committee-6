@@ -1,0 +1,11 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>(관리자용) Course Modality 전체 보기 및 엑셀 다운로드</h2>
+<p>관리자 PIN을 입력하면 전체 저장된 정보를 엑셀 파일로 다운로드합니다.</p>
+{% if message %}<p style="color:red">{{ message }}</p>{% endif %}
+<form method="post">
+    {% csrf_token %}
+    <label>Admin PIN: <input type="password" name="admin_pin"></label>
+    <button type="submit">Export to Excel</button>
+</form>
+{% endblock %}
