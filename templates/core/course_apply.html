@@ -1,4 +1,5 @@
 {% extends 'core/base.html' %}
+{% load tz %}
 {% block content %}
 <h2>Apply for course: {{ record.korean_name }}</h2>
 {% if message %}<p style="color:green">{{ message }}</p>{% endif %}
