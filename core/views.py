@@ -74,6 +74,44 @@ def _parse_bool_cell(value):
     return None
 
 # -----------------------------
+# 추가/수정할 helper 및 함수 (core/views.py에 아래 블록들 삽입/교체)
+# -----------------------------
+
+def _get_field(row, candidates):
+    """
+    row: dict-like (pandas Series.to_dict())
+    candidates: list of possible column header names (case-sensitive first pass)
+    반환: normalized string (''이면 없음)
+    """
+    # 1) 정확한 후보명 우선 탐색
+    for c in candidates:
+        if c in row:
+            val = _norm_cell(row.get(c))
+            if val != '':
+                return val
+    # 2) 키들의 소문자 형태로 비교 (공백/언더스코어 차이 보정)
+    lowmap = { (k.strip().lower() if k else ''): k for k in row.keys() }
+    for c in candidates:
+        key = c.strip().lower()
+        if key in lowmap and lowmap[key] is not None:
+            val = _norm_cell(row.get(lowmap[key]))
+            if val != '':
+                return val
+    # 3) 보다 유연한 매칭: 후보 단어가 키에 포함되는지 확인
+    for key in row.keys():
+        if not key:
+            continue
+        kk = key.strip().lower()
+        for c in candidates:
+            if c.strip().lower() in kk or kk in c.strip().lower():
+                val = _norm_cell(row.get(key))
+                if val != '':
+                    return val
+    return ''
+
+
+
+# -----------------------------
 # 이후에 index, faculty_upload, 기존의 course_upload (여기를 새 코드로 교체), ...
 # -----------------------------
 
@@ -157,6 +195,7 @@ def faculty_search(request):
                         results = []
     return render(request, 'core/faculty_search.html', {'form': form, 'results': results})
 
+# --- course_upload에서 frequency_week, password, reason 등 파싱에 _get_field 사용 ---
 def course_upload(request):
     message = ''
     if request.method == 'POST':
@@ -167,77 +206,58 @@ def course_upload(request):
                 message = '관리자 PIN이 잘못되었습니다.'
             else:
                 f = request.FILES['file']
-                # dtype=object로 읽으면 pandas가 숫자를 자동으로 float로 읽지만 we normalize later
                 df = pd.read_excel(f, dtype=object)
                 for _, raw_row in df.iterrows():
                     row = raw_row.to_dict()
-                    # Korean name 찾아서 병합키로 사용
-                    kn = _norm_cell(row.get('Korean_name', ''))
+                    # Korean_name 찾기
+                    kn = _get_field(row, ['Korean_name', 'Korean name', 'korean_name', 'name_kr', 'Name(KR)', 'Name'])
                     if not kn:
-                        # try alternative header names
-                        for k in row.keys():
-                            if k and k.strip().lower() in ('korean_name', 'korean name', 'name_kr', 'name'):
-                                kn = _norm_cell(row.get(k))
-                                break
-                        if not kn:
-                            continue
+                        continue
 
-                    # 기본 필드들
                     defaults = {
-                        'name': _norm_cell(row.get('Name', '')),
-                        'english_name': _norm_cell(row.get('English_name', '')),
-                        'year': _norm_cell(row.get('Year', '')),
-                        'semester': _norm_cell(row.get('Semester', '')),
-                        'language': _norm_cell(row.get('Language', '')),
-                        'course_title': _norm_cell(row.get('Course Title', '')),
-                        'time_slot': _norm_cell(row.get('Time Slot', '')),
-                        'day': _norm_cell(row.get('Day', '')),
-                        'time': _norm_cell(row.get('Time', '')),
-                        'frequency_week': _norm_cell(row.get('Frequency(Week)', '')),
-                        'course_format': _norm_cell(row.get('Course format', '')),
+                        'name': _get_field(row, ['Name', 'name', 'Instructor', 'Instructor Name']),
+                        'english_name': _get_field(row, ['English_name', 'English name', 'english_name']),
+                        'year': _get_field(row, ['Year', 'year']),
+                        'semester': _get_field(row, ['Semester', 'semester']),
+                        'language': _get_field(row, ['Language', 'language']),
+                        'course_title': _get_field(row, ['Course Title', 'Course_Title', 'course_title', 'Title']),
+                        'time_slot': _get_field(row, ['Time Slot', 'Time_Slot', 'time_slot']),
+                        'day': _get_field(row, ['Day', 'day']),
+                        'time': _get_field(row, ['Time', 'time']),
+                        # frequency_week을 다양한 후보명에서 찾아 넣음
+                        'frequency_week': _get_field(row, ['Frequency(Week)', 'Frequency', 'Frequency (Week)', 'Frequency Week', 'frequency_week']),
+                        'course_format': _get_field(row, ['Course format', 'Course_format', 'course_format']),
                     }
 
+                    # password, reason, apply 처리
                     pw = _get_password_from_row(row)
                     if pw != '':
                         defaults['password'] = pw
 
-                    # Reason 및 Apply flag 처리
                     reason = _get_reason_from_row(row)
                     apply_flag = None
-                    # 여러 후보 컬럼명 탐색
-                    apply_candidates = ['Apply this semester(Online 70)', 'Apply this semester', 'Apply', 'Apply_this_semester', 'Apply_this_semester(Online 70)']
-                    for c in apply_candidates:
-                        if c in row:
-                            apply_flag = _parse_bool_cell(row.get(c))
-                            break
-                    if apply_flag is None:
-                        # 컬럼명이 다를 경우 소문자 기준 매칭
-                        for key in row.keys():
-                            if key and key.strip().lower() in ('apply this semester', 'apply', 'apply_this_semester', 'apply this semester(online 70)'):
-                                apply_flag = _parse_bool_cell(row.get(key))
-                                break
+                    apply_flag = _get_field(row, ['Apply this semester(Online 70)', 'Apply this semester', 'Apply', 'Apply_this_semester'])
+                    if apply_flag != '':
+                        apply_flag = _parse_bool_cell(apply_flag)
+                    else:
+                        apply_flag = None
 
-                    # 기존 레코드가 있으면 get, 없으면 create
+                    # get_or_create / merge logic (기존 로직 유지)
                     obj, created = CourseModality.objects.get_or_create(korean_name=kn, defaults=defaults)
                     if not created:
-                        # 기존 레코드는 빈값이 아닌 필드만 덮어쓰기 (의도치 않은 덮어쓰기를 방지)
                         changed = False
                         for fld, val in defaults.items():
-                            # defaults may include password
                             if val != '' and getattr(obj, fld, '') != val:
                                 setattr(obj, fld, val)
                                 changed = True
-                        # reason 처리: 업로드된 파일에 reason이 있으면 덮어쓰기 및 modified_date 갱신
                         if reason != '':
                             obj.reason_for_applying = reason
                             obj.modified_date = timezone.now()
                             changed = True
-                        # apply flag 처리: 업로드 파일에 값이 있으면 적용/미적용으로 갱신
                         if apply_flag is not None:
                             obj.apply_this_semester = bool(apply_flag)
                             obj.modified_date = timezone.now()
                             changed = True
-                        # password 별도 처리 (빈값이면 덮어쓰지 않음)
                         if 'password' in defaults and defaults.get('password', '') != '':
                             if (obj.password or '').strip() != defaults['password'].strip():
                                 obj.password = defaults['password']
@@ -245,7 +265,6 @@ def course_upload(request):
                         if changed:
                             obj.save()
                     else:
-                        # 새로 생성된 경우, 만약 reason 또는 apply_flag가 존재하면 저장 후 업데이트
                         if reason != '' or apply_flag is not None:
                             if reason != '':
                                 obj.reason_for_applying = reason
@@ -257,6 +276,7 @@ def course_upload(request):
     else:
         form = UploadFileForm()
     return render(request, 'core/course_upload.html', {'form': form, 'message': message})
+
 
 # 붙여넣을 함수들: course_search, course_apply, course_lookup, course_admin_export
 # (core/views.py의 끝에 추가하세요)
@@ -327,7 +347,7 @@ def course_lookup(request, pk):
         form = ApplyPasswordForm()
     return render(request, 'core/course_lookup.html', {'record': record, 'form': form, 'message': message, 'shown': shown})
 
-
+# --- course_admin_export: 'Name' 컬럼 제거 (export에서 보이지 않게) ---
 def course_admin_export(request):
     message = ''
     if request.method == 'POST':
@@ -340,7 +360,7 @@ def course_admin_export(request):
             for rec in qs:
                 rows.append({
                     'No': rec.id,
-                    'Name': rec.name,
+                    # 'Name' 컬럼 삭제 요청에 따라 제거함
                     'Korean_name': rec.korean_name,
                     'English_name': rec.english_name,
                     'Year': rec.year,
@@ -350,7 +370,7 @@ def course_admin_export(request):
                     'Time Slot': rec.time_slot,
                     'Day': rec.day,
                     'Time': rec.time,
-                    'Frequency(Week)': rec.frequency_week,
+                    'Frequency(Week)': rec.frequency_week,   # rec.frequency_week에 저장된 값이 출력됨
                     'Course format': rec.course_format,
                     'Apply this semester(Online 70)': 'Yes' if rec.apply_this_semester else 'No',
                     'Reason for Applying': rec.reason_for_applying,
@@ -365,4 +385,5 @@ def course_admin_export(request):
             response['Content-Disposition'] = 'attachment; filename=course_modality_export.xlsx'
             return response
     return render(request, 'core/course_admin_export.html', {'message': message})
+
 
