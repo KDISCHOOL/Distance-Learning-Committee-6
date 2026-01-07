@@ -7,7 +7,6 @@
 - 기능:
   - Faculty Email Finder: 엑셀 업로드(관리자 PIN 필요), Korean_name 기준 병합, Korean_name 리스트 업로드 -> 보완된 엑셀 다운로드, 검색 및 이메일 복사
   - Course Modality DB: 엑셀 업로드(관리자 PIN 필요), Korean_name 기준 병합, 검색, Apply with password, Look up user submission, 관리자 엑셀 다운로드
-- 관리자 업로드 PIN: 1205 (예제용 하드코드)
 - 배포: PythonAnywhere 추천 (README 하단 배포 가이드 참고)
 
 설치(로컬 개발):
